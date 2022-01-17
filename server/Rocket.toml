@@ -1,0 +1,2 @@
+[global.databases]
+jian_ai = { url = "jian_ai.sqlite" }

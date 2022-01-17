@@ -1,0 +1,4 @@
+/target/
+/Cargo.lock
+/server/pics/
+*.sqlite
