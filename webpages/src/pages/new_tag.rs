@@ -1,9 +1,10 @@
-use anyhow::Error;
+use anyhow::{anyhow, Error};
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
-use yew::format::*;
+use reqwasm::http::*;
+use web_sys::HtmlInputElement;
+use yew::events::Event;
 use yew::prelude::*;
-use yew::services::console::ConsoleService;
-use yew::services::fetch::*;
+use yew::TargetCast;
 
 /// https://url.spec.whatwg.org/#fragment-percent-encode-set
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
@@ -12,49 +13,32 @@ struct State {
     tags: Vec<String>,
     new_tag: String,
     getting_tags: bool,
-    get_tags_error: Option<FetchErrors>,
+    get_tags_error: Option<Error>,
     saving_tag: bool,
-    save_tag_error: Option<FetchErrors>,
+    save_tag_error: Option<Error>,
     show_save_msg: bool,
 }
 
 pub struct NewTagPage {
     state: State,
-    link: ComponentLink<Self>,
-    _task: Option<FetchTask>,
 }
 
 pub enum Msg {
     SaveTag,
     SaveTagOk,
-    SaveTagErr(FetchErrors),
+    SaveTagErr(Error),
     GetTags,
     GetTagsOk(Vec<String>),
-    GetTagsErr(FetchErrors),
-    UINewTagValueState(ChangeData),
-}
-
-pub enum FetchErrors {
-    FetchError(Error),
-    RequestError(StatusCode),
-    ContentError(Error),
-}
-impl std::fmt::Display for FetchErrors {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FetchErrors::FetchError(e) => write!(f, "Error starting fetch: {}", e),
-            FetchErrors::RequestError(s) => write!(f, "Server returns error code: {}", s),
-            FetchErrors::ContentError(e) => write!(f, "Server returns unrecognized data: {}", e),
-        }
-    }
+    GetTagsErr(Error),
+    UINewTagValueState(String),
 }
 
 impl Component for NewTagPage {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
-        link.send_message(Msg::GetTags);
+    fn create(ctx: &Context<Self>) -> Self {
+        ctx.link().send_message(Msg::GetTags);
         Self {
             state: State {
                 tags: vec![],
@@ -65,34 +49,22 @@ impl Component for NewTagPage {
                 save_tag_error: None,
                 show_save_msg: false,
             },
-            link,
-            _task: None,
         }
     }
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::GetTags => {
                 self.state.getting_tags = true;
-                let req = Request::get("/apis/names").body(Nothing).unwrap();
-                let on_done = self.link.callback(
-                    move |response: Response<Json<Result<Vec<String>, Error>>>| {
-                        if response.status().is_success() {
-                            let Json(data) = response.into_body();
-                            match data {
-                                Ok(tags) => Msg::GetTagsOk(tags.to_vec()),
-                                Err(e) => Msg::GetTagsErr(FetchErrors::ContentError(e)),
-                            }
-                        } else {
-                            Msg::GetTagsErr(FetchErrors::RequestError(response.status()))
-                        }
-                    },
-                );
-                match FetchService::fetch(req, on_done) {
-                    Ok(task) => self._task = Some(task),
-                    Err(e) => self
-                        .link
-                        .send_message(Msg::GetTagsErr(FetchErrors::FetchError(e))),
-                }
+                ctx.link().send_future(async {
+                    match Request::get("/apis/names")
+                        .send()
+                        .await
+                        .and_then(|x| futures::executor::block_on(x.json()))
+                    {
+                        Ok(ts) => Msg::GetTagsOk(ts),
+                        Err(e) => Msg::GetTagsErr(anyhow!("{}", e)),
+                    }
+                });
                 true
             }
             Msg::GetTagsOk(tags) => {
@@ -108,42 +80,32 @@ impl Component for NewTagPage {
             Msg::SaveTag => {
                 self.state.saving_tag = true;
                 self.state.show_save_msg = true;
-                match Request::post(format!(
-                    "/apis/new_names?names={}",
-                    utf8_percent_encode(&self.state.new_tag, FRAGMENT)
-                ))
-                .body(Nothing)
-                {
-                    Ok(req) => {
-                        let on_done =
-                            self.link
-                                .callback(move |response: Response<Result<String, Error>>| {
-                                    if response.status().is_success() {
-                                        Msg::SaveTagOk
-                                    } else {
-                                        Msg::SaveTagErr(FetchErrors::RequestError(
-                                            response.status(),
-                                        ))
-                                    }
-                                });
-                        match FetchService::fetch(req, on_done) {
-                            Ok(task) => self._task = Some(task),
-                            Err(e) => self
-                                .link
-                                .send_message(Msg::GetTagsErr(FetchErrors::FetchError(e))),
+                let tag_to_save = self.state.new_tag.clone();
+                ctx.link().send_future(async move {
+                    match Request::get(&format!(
+                        "/apis/new_names?names={}",
+                        utf8_percent_encode(&tag_to_save, FRAGMENT)
+                    ))
+                    .send()
+                    .await
+                    .map_err(|e| anyhow!("{}", e))
+                    .and_then(|x| {
+                        if x.ok() {
+                            Ok(())
+                        } else {
+                            Err(anyhow!("Saving tag response is not OK: {}", x.status()))
                         }
-                        true
+                    }) {
+                        Ok(_) => Msg::SaveTagOk,
+                        Err(e) => Msg::SaveTagErr(e),
                     }
-                    Err(e) => {
-                        ConsoleService::error(&e.to_string());
-                        true
-                    }
-                }
+                });
+                true
             }
             Msg::SaveTagOk => {
                 self.state.saving_tag = false;
                 self.state.new_tag = "".to_string();
-                self.link.send_message(Msg::GetTags);
+                ctx.link().send_message(Msg::GetTags);
                 true
             }
             Msg::SaveTagErr(e) => {
@@ -152,24 +114,18 @@ impl Component for NewTagPage {
                 true
             }
             Msg::UINewTagValueState(v) => {
-                match v {
-                    ChangeData::Value(v) => self.state.new_tag = v,
-                    ChangeData::Select(_) => {}
-                    ChangeData::Files(_) => {}
-                }
+                self.state.new_tag = v;
                 self.state.show_save_msg = false;
                 true
             }
         }
     }
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
-        true
-    }
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         html! {<>
         <header> <h1>{"兼爱"}</h1> </header>
         <nav class="hnav"><ul>
             <li><a href="/tagging">{"标注"}</a></li>
+            {"&nbsp;"}
             <li><a href="/new_tag">{"新名称"}</a></li>
         </ul></nav>
         <section>
@@ -178,35 +134,33 @@ impl Component for NewTagPage {
                     {if self.state.show_save_msg {
                         if self.state.saving_tag {
                             html!{<div class="mask"><h1>{"正在保存……"}</h1></div>}
+                        } else if let Some(e) = &self.state.save_tag_error {
+                            html!{<>
+                                <p>{"保存失败。"}</p>
+                                <p>{e}</p>
+                            </>}
                         } else {
-                            if let Some(e) = &self.state.save_tag_error {
-                                html!{<>
-                                    <p>{"保存失败。"}</p>
-                                    <p>{e}</p>
-                                </>}
-                            } else {
-                                html!{<p>{"保存成功。"}</p>}
-                            }
+                            html!{<p>{"保存成功。"}</p>}
                         }
                     } else {
                         html!{}
                     }}
                     <label for="tag">{"名称：（多个输入请用“,”分割）"}</label>
-                    <input id="tag" type="text" value={self.state.new_tag.clone()} onchange=self.link.callback( move |v| Msg::UINewTagValueState(v)) />
-                    <button type="button" onclick=self.link.callback(move |_| Msg::SaveTag)>{"Save"}</button>
+                    <input id="tag" type="text" value={self.state.new_tag.clone()} onchange={ctx.link().callback(move |event: Event| {
+                        Msg::UINewTagValueState(event.target_dyn_into::<HtmlInputElement>().unwrap().value())
+                    })} />
+                    <button type="button" onclick={ctx.link().callback(move |_| Msg::SaveTag)}>{"Save"}</button>
                 </div>
                 <hr />
                 {if self.state.getting_tags {
                     html!{<p>{"正在下载所有名称……"}</p>}
+                } else if let Some(e) = &self.state.get_tags_error {
+                    html!{<>
+                        <p>{"下载名称失败，请刷新页面。"}</p>
+                        <p>{e}</p>
+                    </>}
                 } else {
-                    if let Some(e) = &self.state.get_tags_error {
-                        html!{<>
-                            <p>{"下载名称失败，请刷新页面。"}</p>
-                            <p>{e}</p>
-                        </>}
-                    } else {
-                        html!{<div class="grid">{self.state.tags.iter().map(|tag| html!{<div>{tag}</div>}).collect::<Html>()}</div>}
-                    }
+                    html!{<div class="grid">{self.state.tags.iter().map(|tag| html!{<div>{tag}</div>}).collect::<Html>()}</div>}
                 }}
             </article>
         </section>

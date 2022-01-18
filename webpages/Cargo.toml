@@ -7,7 +7,12 @@ edition = "2021"
 
 [dependencies]
 yew = "*"
+web-sys = "*"
 yew-router = "*"
 anyhow = "*"
 serde_json = "*"
 percent-encoding = "*"
+wasm-logger = "*"
+log = "*"
+reqwasm = "*"
+futures = "*"
