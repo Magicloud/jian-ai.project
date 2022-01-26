@@ -157,58 +157,77 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "/pics",
             StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/pics")),
         )
-        .mount(
-            "/",
-            YewFiles {
-                root: [env!("CARGO_MANIFEST_DIR"), "webpages", "static"]
-                    .iter()
-                    .collect::<PathBuf>(),
-                default_page: ["index.html"].iter().collect::<PathBuf>(),
-                rank: 100,
-            },
-        ) // StaticFiles::from([env!("CARGO_MANIFEST_DIR"), "webpages", "static"].iter().collect::<PathBuf>()))
+        // .mount(
+        //     "/",
+        //     YewFiles {
+        //         root: [env!("CARGO_MANIFEST_DIR"), "webpages", "static"]
+        //             .iter()
+        //             .collect::<PathBuf>(),
+        //         default_page: ["index.html"].iter().collect::<PathBuf>(),
+        //         rank: 100,
+        //     },
+        // ) // StaticFiles::from([env!("CARGO_MANIFEST_DIR"), "webpages", "static"].iter().collect::<PathBuf>()))
         .launch();
 
     Ok(())
 }
 
-use rocket::handler::Outcome;
-use rocket::http::uri::Segments;
-use rocket::http::{Method, Status};
-use rocket::response::NamedFile;
+// use rocket::handler::Outcome;
+// use rocket::http::uri::Segments;
+// use rocket::http::{Method, Status};
+// use rocket::response::NamedFile;
 
-#[derive(Clone)]
-pub struct YewFiles {
-    root: PathBuf,
-    default_page: PathBuf,
-    rank: isize,
-}
+// #[derive(Clone)]
+// pub struct YewFiles {
+//     root: PathBuf,
+//     default_page: PathBuf,
+//     rank: isize,
+// }
 
-type Routes = Vec<Route>;
-impl From<YewFiles> for Routes {
-    fn from(yf: YewFiles) -> Self {
-        vec![Route::ranked(yf.rank, Method::Get, "/<path..>", yf)]
-    }
-}
+// type Routes = Vec<Route>;
+// impl From<YewFiles> for Routes {
+//     fn from(yf: YewFiles) -> Self {
+//         vec![Route::ranked(yf.rank, Method::Get, "/<path..>", yf)]
+//     }
+// }
 
-impl Handler for YewFiles {
-    fn handle<'r>(&self, req: &'r Request<'_>, _data: Data) -> Outcome<'r> {
-        if let Some(Ok(segs)) = req.get_segments::<Segments>(0) {
-            if let Ok(path) = segs.into_path_buf(false) {
-                let full_path = self.root.join(path);
-                if full_path.is_file() {
-                    Outcome::from(req, NamedFile::open(&full_path).ok())
-                } else {
-                    Outcome::from(
-                        req,
-                        NamedFile::open(&self.root.join(&self.default_page)).ok(),
-                    )
-                }
-            } else {
-                Outcome::Failure(Status::NotFound)
-            }
-        } else {
-            Outcome::Failure(Status::NotFound)
-        }
-    }
-}
+// impl Handler for YewFiles {
+//     fn handle<'r>(&self, req: &'r Request<'_>, _data: Data) -> Outcome<'r> {
+//         if let Some(Ok(segs)) = req.get_segments::<Segments>(0) {
+//             if let Ok(path) = segs.into_path_buf(false) {
+//                 let full_path = self.root.join(path);
+//                 if full_path.is_file() {
+//                     Outcome::from(req, NamedFile::open(&full_path).ok())
+//                 } else {
+//                     Outcome::from(
+//                         req,
+//                         NamedFile::open(&self.root.join(&self.default_page)).ok(),
+//                     )
+//                 }
+//             } else {
+//                 Outcome::Failure(Status::NotFound)
+//             }
+//         } else {
+//             Outcome::Failure(Status::NotFound)
+//         }
+//     }
+// }
+
+// use rocket::fairing::{Fairing, Info, Kind};
+// struct CORS;
+// impl Fairing for CORS {
+//     fn info(&self) -> Info {
+//         Info {
+//             name: "cors",
+//             kind: Kind::Response, // | Kind::Singleton,
+//         }
+//     }
+
+//     fn on_response(&self, request: &Request<'_>, response: &mut Response<'_>) {
+//         response.set_header(
+//             rocket::http::hyper::header::AccessControlAllowOrigin::Value(
+//                 "http://localhost:8000/".to_string(),
+//             ),
+//         );
+//     }
+// }
