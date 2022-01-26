@@ -29,7 +29,7 @@ pub enum Msg {
     SaveTag,
     SaveTagsResult(Result<()>),
     UINewTagValueState(String),
-    EB_MSG(eventbus::tags::Msg),
+    EventBusMessage(eventbus::tags::Msg),
 }
 
 impl Component for NewTag {
@@ -41,7 +41,7 @@ impl Component for NewTag {
             new_tag: "".to_string(),
             tags: vec![],
             persist_tags: RemoteWrite::NotStartedYet,
-            _eb_tags: eventbus::tags::EventBus::bridge(ctx.link().callback(Msg::EB_MSG)),
+            _eb_tags: eventbus::tags::EventBus::bridge(ctx.link().callback(Msg::EventBusMessage)),
             eb_tags: eventbus::tags::EventBus::dispatcher(),
         }
     }
@@ -79,7 +79,7 @@ impl Component for NewTag {
             Msg::UINewTagValueState(v) => {
                 self.new_tag = v;
             }
-            Msg::EB_MSG(msg) => {
+            Msg::EventBusMessage(msg) => {
                 if let eventbus::tags::Msg::Tags(tags) = msg {
                     self.tags = tags;
                 }
@@ -107,7 +107,9 @@ impl Component for NewTag {
                 <button type="button" onclick={ctx.link().callback(move |_| Msg::SaveTag)}>{"Save"}</button>
             </div>
             <hr />
-            <div class="grid">{self.tags.iter().map(|tag| html!{<div>{tag}</div>}).collect::<Html>()}</div>
+            <div class="grid">{self.tags.iter().map(|tag|
+                html!{<div>{tag}</div>}
+            ).collect::<Html>()}</div>
         </>}
     }
 }

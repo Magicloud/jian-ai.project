@@ -5,7 +5,6 @@ use reqwasm::http::*;
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged, Dispatched, Dispatcher};
 use yew_router::prelude::*;
-use yew_router::scope_ext::HistoryHandle;
 
 enum RemoteValue<T> {
     NotStartedYet,
@@ -24,7 +23,7 @@ pub struct BasePage {
 pub enum Msg {
     GetTags,
     GetTagsResult(Result<Vec<String>>),
-    EB_MSG(eventbus::tags::Msg),
+    EventBusMessage(eventbus::tags::Msg),
 }
 
 impl Component for BasePage {
@@ -36,7 +35,7 @@ impl Component for BasePage {
         Self {
             tags: RemoteValue::NotStartedYet,
             eb_tags: eventbus::tags::EventBus::dispatcher(),
-            _eb_tags: eventbus::tags::EventBus::bridge(ctx.link().callback(Msg::EB_MSG)),
+            _eb_tags: eventbus::tags::EventBus::bridge(ctx.link().callback(Msg::EventBusMessage)),
         }
     }
 
@@ -73,7 +72,7 @@ impl Component for BasePage {
                 }
                 self.tags = RemoteValue::Done(x);
             }
-            Msg::EB_MSG(msg) => {
+            Msg::EventBusMessage(msg) => {
                 if let eventbus::tags::Msg::Reload = msg {
                     ctx.link().send_message(Msg::GetTags);
                 }
