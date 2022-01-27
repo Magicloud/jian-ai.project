@@ -1,9 +1,7 @@
 use crate::components::new_tag::*;
-use crate::eventbus;
 use anyhow::{anyhow, Result};
 use reqwasm::http::*;
 use yew::prelude::*;
-use yew_agent::{Bridge, Bridged, Dispatched, Dispatcher};
 use yew_router::prelude::*;
 
 enum RemoteValue<T> {
@@ -16,14 +14,11 @@ type Tags = RemoteValue<Vec<String>>;
 
 pub struct BasePage {
     tags: Tags,
-    eb_tags: Dispatcher<eventbus::tags::EventBus>,
-    _eb_tags: Box<dyn Bridge<eventbus::tags::EventBus>>,
 }
 
 pub enum Msg {
     GetTags,
     GetTagsResult(Result<Vec<String>>),
-    EventBusMessage(eventbus::tags::Msg),
 }
 
 impl Component for BasePage {
@@ -34,8 +29,6 @@ impl Component for BasePage {
         ctx.link().send_message(Msg::GetTags);
         Self {
             tags: RemoteValue::NotStartedYet,
-            eb_tags: eventbus::tags::EventBus::dispatcher(),
-            _eb_tags: eventbus::tags::EventBus::bridge(ctx.link().callback(Msg::EventBusMessage)),
         }
     }
 
@@ -54,28 +47,10 @@ impl Component for BasePage {
                         },
                         Err(e) => Msg::GetTagsResult(Err(anyhow!("{}", e))),
                     }
-                    // In WASM, I cannot block_on.
-                    // match Request::get("http://localhost:8000/apis/names")
-                    //     .send()
-                    //     .await
-                    //     .and_then(|x| futures::executor::block_on(x.json()))
-                    // {
-                    //     Ok(ts) => Msg::GetTagsResult(Ok(ts)),
-                    //     Err(e) => Msg::GetTagsResult(Err(anyhow!("{}", e))),
-                    // }
                 })
             }
             Msg::GetTagsResult(x) => {
-                if let Ok(tags) = &x {
-                    self.eb_tags
-                        .send(eventbus::tags::Msg::Tags((*tags).clone()));
-                }
                 self.tags = RemoteValue::Done(x);
-            }
-            Msg::EventBusMessage(msg) => {
-                if let eventbus::tags::Msg::Reload = msg {
-                    ctx.link().send_message(Msg::GetTags);
-                }
             }
         };
         true
@@ -100,7 +75,15 @@ impl Component for BasePage {
                             _ => html! {}
                         }}
                     </div>
-                    <Switch<Route> render={Switch::render(switch)} />
+                    <ContextProvider<Vec<String>> context={
+                        if let RemoteValue::Done(Ok(tags)) = &(self.tags) {
+                            tags.clone()
+                        } else {
+                            vec![]
+                        }
+                    }>
+                        <Switch<Route> render={Switch::render(switch)} />
+                    </ContextProvider<Vec<String>>>
                 </article>
             </section>
             <footer>{"Magicloud"}</footer>

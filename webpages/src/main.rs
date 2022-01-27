@@ -1,5 +1,4 @@
 mod components;
-mod eventbus;
 
 fn main() {
     wasm_logger::init(wasm_logger::Config::default());

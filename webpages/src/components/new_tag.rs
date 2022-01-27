@@ -1,4 +1,3 @@
-use crate::eventbus;
 use anyhow::{anyhow, Error, Result};
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use reqwasm::http::*;
@@ -6,7 +5,6 @@ use web_sys::HtmlInputElement;
 use yew::events::Event;
 use yew::prelude::*;
 use yew::TargetCast;
-use yew_agent::{Bridge, Bridged, Dispatched, Dispatcher};
 
 /// https://url.spec.whatwg.org/#fragment-percent-encode-set
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
@@ -19,17 +17,13 @@ enum RemoteWrite {
 
 pub struct NewTag {
     new_tag: String,
-    tags: Vec<String>,
     persist_tags: RemoteWrite,
-    _eb_tags: Box<dyn Bridge<eventbus::tags::EventBus>>,
-    eb_tags: Dispatcher<eventbus::tags::EventBus>,
 }
 
 pub enum Msg {
     SaveTag,
     SaveTagsResult(Result<()>),
     UINewTagValueState(String),
-    EventBusMessage(eventbus::tags::Msg),
 }
 
 impl Component for NewTag {
@@ -39,10 +33,7 @@ impl Component for NewTag {
     fn create(ctx: &Context<Self>) -> Self {
         Self {
             new_tag: "".to_string(),
-            tags: vec![],
             persist_tags: RemoteWrite::NotStartedYet,
-            _eb_tags: eventbus::tags::EventBus::bridge(ctx.link().callback(Msg::EventBusMessage)),
-            eb_tags: eventbus::tags::EventBus::dispatcher(),
         }
     }
 
@@ -71,24 +62,20 @@ impl Component for NewTag {
                 });
             }
             Msg::SaveTagsResult(r) => {
-                if let Ok(()) = r {
-                    self.eb_tags.send(eventbus::tags::Msg::Reload);
-                };
                 self.persist_tags = RemoteWrite::Done(r.err());
             }
             Msg::UINewTagValueState(v) => {
                 self.new_tag = v;
-            }
-            Msg::EventBusMessage(msg) => {
-                if let eventbus::tags::Msg::Tags(tags) = msg {
-                    self.tags = tags;
-                }
             }
         };
         true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let (tags, _) = ctx
+            .link()
+            .context::<Vec<String>>(Callback::noop())
+            .expect("Context tags is not set");
         html! {<>
             <div>
                 {match &self.persist_tags {
@@ -107,9 +94,11 @@ impl Component for NewTag {
                 <button type="button" onclick={ctx.link().callback(move |_| Msg::SaveTag)}>{"Save"}</button>
             </div>
             <hr />
-            <div class="grid">{self.tags.iter().map(|tag|
-                html!{<div>{tag}</div>}
-            ).collect::<Html>()}</div>
+            <div class="grid">{
+                tags.iter().map(|tag|
+                    html!{<div>{tag}</div>}
+                ).collect::<Html>()
+            }</div>
         </>}
     }
 }
