@@ -93,6 +93,9 @@ impl Component for BasePage {
 
 #[derive(Routable, PartialEq, Clone, Debug)]
 pub enum Route {
+    #[not_found]
+    #[at("/404")]
+    NotFound,
     #[at("/tagging")]
     Tagging,
     #[at("/new_tag")]
@@ -101,6 +104,7 @@ pub enum Route {
 
 fn switch(routes: &Route) -> Html {
     match routes {
+        Route::NotFound => html! { <h1>{"404"}</h1> },
         Route::Tagging => html! { <h1>{ "Tagging" }</h1> },
         Route::NewTag => html! { <NewTag /> },
     }

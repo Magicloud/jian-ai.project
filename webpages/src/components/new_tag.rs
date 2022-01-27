@@ -30,7 +30,7 @@ impl Component for NewTag {
     type Message = Msg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             new_tag: "".to_string(),
             persist_tags: RemoteWrite::NotStartedYet,
