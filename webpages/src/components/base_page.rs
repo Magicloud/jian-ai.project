@@ -10,6 +10,16 @@ pub enum RemoteValue<T> {
     Doing,
     Done(Result<T>),
 }
+impl<T> RemoteValue<T> {
+    pub fn update<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut T),
+    {
+        if let RemoteValue::Done(Ok(x)) = self {
+            f(x)
+        };
+    }
+}
 
 type Tags = RemoteValue<Vec<String>>;
 
@@ -71,7 +81,7 @@ impl Component for BasePage {
                             RemoteValue::Done(Err(e)) => {
                                 html! {<h1>{format!("获取所有名称失败 {}", e)}</h1>}
                             }
-                            _ => html! {}
+                            _ => html!{}
                         }}
                     </div>
                     <ContextProvider<Vec<String>> context={

@@ -7,16 +7,6 @@ use std::sync::Arc;
 use yew::prelude::*;
 
 type Photos = RemoteValue<LinkedHashSet<String>>;
-impl Photos {
-    fn update<F>(&mut self, f: F)
-    where
-        F: FnOnce(&mut LinkedHashSet<String>),
-    {
-        if let RemoteValue::Done(Ok(x)) = self {
-            f(x)
-        };
-    }
-}
 
 // Also in new_tag.
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
@@ -120,18 +110,18 @@ impl Component for Tagging {
                 });
             }
             Msg::SaveResult(r) => {
-                &r.as_ref().map(|saved_photo| {
+                let _ = &r.as_ref().map(|saved_photo| {
                     Arc::get_mut(&mut self.photos).map(|photos| {
                         photos.update(|ps| {
                             ps.remove(saved_photo);
                         })
-                    });
+                    })
                 });
                 self.persist_name = RemoteWrite::Done(r);
             }
             Msg::Next => {
                 let current_photo = self.current_photo.clone();
-                current_photo.map(|curr_photo| {
+                let _ = current_photo.map(|curr_photo| {
                     let tmp: &Photos = &self.photos;
                     if let RemoteValue::Done(Ok(photos)) = tmp {
                         let mut iter = photos.iter();
@@ -157,31 +147,39 @@ impl Component for Tagging {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let tmp: &Photos = &self.photos;
         html! {<main>
             <div class="d-flex flex-column align-items-stretch flex-shrink-0 bg-white" style="width: 230px;">
                 <p class="d-flex align-items-center flex-shrink-0 p-3 link-dark text-decoration-none border-bottom fs-5 fw-semibold">{"Unnamed Photos"}</p>
                 <div class="list-group list-group-flush border-bottom scrollarea">
-                {if let RemoteValue::Done(Ok(photos)) = tmp {
-                    photos.iter().enumerate().map(|(i, photo)| {
-                        let cls = if self.current_photo == Some(photo.clone()) {
-                            classes!("list-group-item", "list-group-item-action", "py-3", "lh-tight", "d-flex", "w-100", "align-items-center", "justify-content-between", "active")
-                        } else {
-                            classes!("list-group-item", "list-group-item-action", "py-3", "lh-tight", "d-flex", "w-100", "align-items-center", "justify-content-between")
-                        };
-                        html! {
-                        <div class={cls} aria-current={if self.current_photo == Some(photo.clone()) {"true"} else {"false"}} onclick={
-                            ctx.link().callback(|_| {
-                                Msg::PhotoClicked(photo.clone())
-                            })
-                        }>
-                            <span class="mb-1">{i}</span>
-                            <img src={format!("http://localhost:8000/pics/{}", photo)} class="mb-1" alt={photo.clone()} loading="lazy" />
-                        </div>
-                    }}).collect()
-                } else {
-                    html! {}
-                }}
+                    {match &*self.photos {
+                        RemoteValue::Done(Ok(photos)) => {
+                            photos.iter().enumerate().map(|(i, photo_)| {
+                                let photo = photo_.clone();
+                                let p = photo.clone();
+                                let cls = if self.current_photo == Some(photo.clone()) {
+                                    classes!("list-group-item", "list-group-item-action", "py-3", "lh-tight", "d-flex", "w-100", "align-items-center", "justify-content-between", "active")
+                                } else {
+                                    classes!("list-group-item", "list-group-item-action", "py-3", "lh-tight", "d-flex", "w-100", "align-items-center", "justify-content-between")
+                                };
+                                html! {
+                                <div class={cls} aria-current={if self.current_photo == Some(photo.clone()) {"true"} else {"false"}} onclick={
+                                    ctx.link().callback(move |_| {
+                                        Msg::PhotoClicked(p.clone())
+                                    })
+                                }>
+                                    <span class="mb-1">{i}</span>
+                                    <img src={format!("http://localhost:8000/pics/{}", photo)} class="mb-1" alt={photo.clone()} loading="lazy" />
+                                </div>
+                            }}).collect()
+                        }
+                        RemoteValue::Done(Err(e)) => {
+                            html! {<h1>{format!("获取未命名照片失败 {}", e)}</h1>}
+                        }
+                        RemoteValue::Doing => {
+                            html! {<h1>{"获取未命名照片……"}</h1>}
+                        }
+                        _ => html!{}
+                    }}
                 </div>
             </div>
             {if let Some(curr_photo) = self.current_photo.clone() {
