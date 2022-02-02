@@ -1,7 +1,50 @@
 .grid {
-    /* height: 100px; */
-    display: grid;
-    grid-template-areas: "a a a a a";
-    /* gap: 10px; */
-    grid-auto-columns: auto;
-  }
+  /* height: 100px; */
+  display: grid;
+  grid-template-areas: "a a a a a";
+  /* gap: 10px; */
+  grid-auto-columns: auto;
+}
+
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+html {
+  height: -webkit-fill-available;
+}
+
+main {
+  display: flex;
+  flex-wrap: nowrap;
+  height: 100vh;
+  height: -webkit-fill-available;
+  max-height: 100vh;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.scrollarea {
+  overflow-y: auto;
+}
+
+.dropdown-menu- {
+  /* position: static; */
+  /* display: block; */
+  width: auto;
+  margin: 4rem auto;
+}
+
+.dropdown-item {
+  border-radius: .25rem;
+}
+
+.tag-layout {
+  display: grid;
+  grid-template-areas:
+    "photo   names"
+    "name    names"
+    "buttons names";
+  grid-auto-columns: auto;
+}

@@ -1,10 +1,11 @@
 use crate::components::new_tag::*;
+use crate::components::tagging::*;
 use anyhow::{anyhow, Result};
 use reqwasm::http::*;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-enum RemoteValue<T> {
+pub enum RemoteValue<T> {
     NotStartedYet,
     Doing,
     Done(Result<T>),
@@ -49,9 +50,7 @@ impl Component for BasePage {
                     }
                 })
             }
-            Msg::GetTagsResult(x) => {
-                self.tags = RemoteValue::Done(x);
-            }
+            Msg::GetTagsResult(x) => self.tags = RemoteValue::Done(x),
         };
         true
     }
@@ -105,7 +104,7 @@ pub enum Route {
 fn switch(routes: &Route) -> Html {
     match routes {
         Route::NotFound => html! { <h1>{"404"}</h1> },
-        Route::Tagging => html! { <h1>{ "Tagging" }</h1> },
+        Route::Tagging => html! { <Tagging /> },
         Route::NewTag => html! { <NewTag /> },
     }
 }

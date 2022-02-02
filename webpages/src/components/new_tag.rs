@@ -9,6 +9,8 @@ use yew::TargetCast;
 /// https://url.spec.whatwg.org/#fragment-percent-encode-set
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
 
+// need tag management
+
 enum RemoteWrite {
     NotStartedYet,
     Doing,

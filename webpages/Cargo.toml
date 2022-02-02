@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 yew = "*"
-web-sys = "*"
+web-sys = { version = "*", features = [] }
 yew-agent = "*"
 yew-router = "*"
 anyhow = "*"
@@ -16,3 +16,4 @@ percent-encoding = "*"
 wasm-logger = "*"
 log = "*"
 reqwasm = "*"
+linked_hash_set = "*"
