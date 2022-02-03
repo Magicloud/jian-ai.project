@@ -76,6 +76,7 @@ impl Component for Tagging {
             },
             Msg::PhotoClicked(i) => {
                 self.current_photo = Some(i);
+                self.current_name = None;
             }
             Msg::NameClicked(n) => {
                 self.current_name = Some(n);
@@ -148,53 +149,55 @@ impl Component for Tagging {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {<main>
-            <div class="d-flex flex-column align-items-stretch flex-shrink-0 bg-white" style="width: 230px;">
-                <p class="d-flex align-items-center flex-shrink-0 p-3 link-dark text-decoration-none border-bottom fs-5 fw-semibold">{"Unnamed Photos"}</p>
-                <div class="list-group list-group-flush border-bottom scrollarea">
-                    {match &*self.photos {
-                        RemoteValue::Done(Ok(photos)) => {
-                            photos.iter().enumerate().map(|(i, photo_)| {
-                                let photo = photo_.clone();
-                                let p = photo.clone();
-                                let cls = if self.current_photo == Some(photo.clone()) {
-                                    classes!("list-group-item", "list-group-item-action", "py-3", "lh-tight", "d-flex", "w-100", "align-items-center", "justify-content-between", "active")
-                                } else {
-                                    classes!("list-group-item", "list-group-item-action", "py-3", "lh-tight", "d-flex", "w-100", "align-items-center", "justify-content-between")
-                                };
-                                html! {
-                                <div class={cls} aria-current={if self.current_photo == Some(photo.clone()) {"true"} else {"false"}} onclick={
-                                    ctx.link().callback(move |_| {
-                                        Msg::PhotoClicked(p.clone())
-                                    })
-                                }>
-                                    <span class="mb-1">{i}</span>
-                                    <img src={format!("http://localhost:8000/pics/{}", photo)} class="mb-1" alt={photo.clone()} loading="lazy" />
-                                </div>
-                            }}).collect()
-                        }
-                        RemoteValue::Done(Err(e)) => {
-                            html! {<h1>{format!("获取未命名照片失败 {}", e)}</h1>}
-                        }
-                        RemoteValue::Doing => {
-                            html! {<h1>{"获取未命名照片……"}</h1>}
-                        }
-                        _ => html!{}
-                    }}
-                </div>
+            <div class="d-flex flex-column align-items-stretch flex-shrink-0 bg-white" style="width: 300px;">
+                {match &*self.photos {
+                    RemoteValue::Done(Ok(photos)) => {
+                        html!{<>
+                            <p class="d-flex align-items-center flex-shrink-0 p-3 link-dark text-decoration-none border-bottom fs-5 fw-semibold">{format!("未命名照片 {}", photos.iter().len())}</p>
+                            <div class="list-group list-group-flush border-bottom scrollarea">
+                                {photos.iter().enumerate().map(|(i, photo_)| {
+                                    let photo = photo_.clone();
+                                    let p = photo.clone();
+                                    let cls = if self.current_photo == Some(photo.clone()) {
+                                        classes!("list-group-item", "list-group-item-action", "py-3", "lh-tight", "d-flex", "w-100", "align-items-center", "justify-content-between", "active")
+                                    } else {
+                                        classes!("list-group-item", "list-group-item-action", "py-3", "lh-tight", "d-flex", "w-100", "align-items-center", "justify-content-between")
+                                    };
+                                    html! {
+                                        <div class={cls} aria-current={if self.current_photo == Some(photo.clone()) {"true"} else {"false"}} onclick={
+                                            ctx.link().callback(move |_| {
+                                                Msg::PhotoClicked(p.clone())
+                                            })
+                                        }>
+                                            <span class="mb-1">{i}</span>
+                                            <img src={format!("http://localhost:8000/pics/{}", photo)} class="mb-1" alt={photo.clone()} loading="lazy" />
+                                        </div>
+                                    }
+                                }).collect::<Html>()}
+                            </div>
+                        </>}}
+                    RemoteValue::Done(Err(e)) => {
+                        html! {<h1>{format!("获取未命名照片失败 {}", e)}</h1>}
+                    }
+                    RemoteValue::Doing => {
+                        html! {<h1>{"获取未命名照片……"}</h1>}
+                    }
+                    _ => html!{}
+                }}
             </div>
             {if let Some(curr_photo) = self.current_photo.clone() {
                 let (tags, _) = ctx
                     .link()
                     .context::<Vec<String>>(Callback::noop())
                     .expect("Context tags is not set");
-                html! {<div class="tag-layout">
-                    <img style="grid-area: photo;" src={format!("http://localhost:8000/pics/{}", &curr_photo)} alt={curr_photo.clone()} />
+                html! {<div class="tag-layout" style="width: 100%;">
+                    <div style="grid-area: photo; text-align: center;"><img src={format!("http://localhost:8000/pics/{}", &curr_photo)} alt={curr_photo.clone()} /></div>
 
                     <div class="pt-0 mx-0 rounded-3 shadow overflow-hidden" style="grid-area: names;">
                         <form class="p-2 mb-2 bg-light border-bottom">
-                            <input type="search" class="form-control" autocomplete="false" placeholder="Type to filter..." />
+                            <input type="search" class="form-control" autocomplete="false" placeholder="过滤……" />
                         </form>
-                        <div style="height: 100vh; overflow-y: scroll;">
+                        <div style="height: 100%; overflow-y: scroll;">
                         <ul class="list-unstyled mb-0">
                             {tags.iter().map(|tag| {
                                 let tag_ = tag.clone();
@@ -210,7 +213,7 @@ impl Component for Tagging {
                         <label>{if let Some(current_name) = self.current_name.clone() {current_name} else {"".to_string()}}</label>
                     </div>
 
-                    <div style="grid-area: buttons;">
+                    <div style="grid-area: buttons; text-align: center;">
                         <button type="button" onclick={ctx.link().callback(|_| Msg::Save)}>{"Save"}</button>
                         <button type="button" onclick={ctx.link().callback(|_| Msg::Next)}>{"Next"}</button>
                     </div>

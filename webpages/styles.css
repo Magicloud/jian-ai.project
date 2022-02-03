@@ -15,12 +15,16 @@ html {
   height: -webkit-fill-available;
 }
 
+header {
+  height: 10vh;
+}
+
 main {
   display: flex;
   flex-wrap: nowrap;
-  height: 100vh;
+  height: 90vh;
   height: -webkit-fill-available;
-  max-height: 100vh;
+  max-height: 90vh;
   overflow-x: auto;
   overflow-y: hidden;
 }
